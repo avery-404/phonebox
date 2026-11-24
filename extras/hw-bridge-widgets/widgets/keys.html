@@ -1,0 +1,38 @@
+<!-- 大尺寸快捷鍵按鈕（取代原生快捷鍵格，原生的圖示與文字上限太小）。
+     建置時 build_panel.ps1 會把 __KEYS__ 換成 [{id,label,img,color}...]，__COLS__ 換成欄數。
+     點一下就呼叫 phonebox.run(id) 由電腦執行該快捷鍵。 -->
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:transparent;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#g{display:grid;gap:.6rem;height:100vh;padding:.5rem;grid-template-columns:repeat(__COLS__,1fr);grid-auto-rows:1fr}
+.k{position:relative;border:0;border-radius:1.6rem;color:#fff;font-family:inherit;cursor:pointer;container-type:size;
+   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5cqh;padding:4cqh 4cqw;
+   background:linear-gradient(160deg,color-mix(in srgb,var(--c) 28%,#000),#000 85%);
+   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 45%,transparent);transition:transform .08s,filter .15s}
+.k:active{transform:scale(.96);filter:brightness(1.35)}
+.k img{width:min(52cqh,62cqw);height:min(52cqh,62cqw);object-fit:contain;border-radius:18%}
+.k span{font-size:min(15cqh,15cqw);font-weight:600;line-height:1.1;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
+/* LCD 方案（html 有 .lcd 時）：背景鋪動態彩色漸層，按鈕改成更亮的主題色漸層（深色底在 LCD 上會又灰又暗） */
+html.lcd{background:transparent}
+.lcd .k{background:linear-gradient(160deg,color-mix(in srgb,var(--c) 56%,#0b1426),color-mix(in srgb,var(--c) 18%,#0b1426) 95%);
+        box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 70%,#fff)}
+.k.ok::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 .22rem #4ade80 inset;animation:f .6s forwards}
+@keyframes f{to{opacity:0}}
+</style>
+<div id="g"></div>
+<script>
+// LCD 判斷（同 common.html）：螢幕長邊／短邊 < 2 才套 LCD 樣式
+/* 已停用 LCD 專屬外觀：XZP 與 Xperia 1 II 使用同一套純黑外觀（使用者 2026-11-25 決定） */
+// 建置時注入的按鈕清單
+var KEYS=__KEYS__;
+var g=document.getElementById('g');
+KEYS.forEach(function(k){
+  var b=document.createElement('button');b.className='k';b.style.setProperty('--c',k.color||'#64748b');
+  var im=document.createElement('img');im.src=k.img;im.alt='';
+  var sp=document.createElement('span');sp.textContent=k.label;
+  b.appendChild(im);b.appendChild(sp);
+  b.addEventListener('click',function(){
+    phonebox.run(k.id);b.classList.remove('ok');void b.offsetWidth;b.classList.add('ok');
+    if(navigator.vibrate)navigator.vibrate(15)});
+  g.appendChild(b)});
+</script>

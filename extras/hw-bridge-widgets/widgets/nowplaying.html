@@ -1,0 +1,213 @@
+<!-- 播放中頁（仿 Apple Music）：專輯主色的流動模糊背景 + 封面 + 歌名 + 進度 + 控制鍵 + 同步歌詞。
+     資料：push 'art' = {id,img(data URI),pal[4 色]}（hw_bridge 抓封面、抽色）；push 'lyr' = 歌詞；state.media = 播放狀態。
+     控制鍵用 phonebox.run('media-prev'|'media-play'|'media-next')（對應 media-key.ps1 的快捷鍵）。
+     歌詞計時：本機時鐘逐幀內插，state 每秒校正一次（誤差超過 0.4 秒才跳）。 -->
+<style>
+html,body{background:#000;overflow:hidden}
+#bg{position:fixed;inset:0;overflow:hidden;background:#000}
+/* 色塊：用「放射狀漸層到透明」代替 filter:blur（模糊濾鏡在 XZ Premium 這種舊 GPU 很吃效能，4K 只剩 6 FPS）。
+   顏色由 JS 設定 --c；@property 讓顏色切歌時能平滑漸變。.lcd 時色塊更不透明、遮罩更淡，漸層才看得清楚。 */
+@property --c{syntax:'<color>';inherits:false;initial-value:#334155}
+.blob{position:absolute;border-radius:50%;opacity:.75;background:radial-gradient(closest-side,var(--c),transparent);transition:--c 1.8s;will-change:transform}
+.lcd .blob{opacity:1}
+.lcd #shade{background:linear-gradient(to bottom,rgba(0,0,0,0) 78%,#000 100%),radial-gradient(120% 120% at 50% 50%,rgba(0,0,0,.04),rgba(0,0,0,.4))!important}
+.b0{width:46rem;height:46rem;left:-8rem;top:-10rem;animation:d0 70s ease-in-out infinite alternate}
+.b1{width:40rem;height:40rem;right:-6rem;top:-4rem;animation:d1 85s ease-in-out infinite alternate}
+.b2{width:44rem;height:44rem;left:22rem;bottom:-18rem;animation:d2 78s ease-in-out infinite alternate}
+.b3{width:30rem;height:30rem;right:8rem;bottom:-8rem;opacity:.45;animation:d3 62s ease-in-out infinite alternate}
+@keyframes d0{to{transform:translate(12rem,7rem) scale(1.15)}}
+@keyframes d1{to{transform:translate(-11rem,9rem) scale(.9)}}
+@keyframes d2{to{transform:translate(10rem,-8rem) scale(1.12)}}
+@keyframes d3{to{transform:translate(-13rem,-7rem) scale(1.15)}}
+/* 遮罩：中間透出專輯色、四周壓暗；最下方 22% 漸層到純黑，和底部黑色頁面條接在一起（不會有色塊斷在黑條上的接縫） */
+#shade{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0) 78%,#000 100%),radial-gradient(120% 120% at 50% 50%,rgba(0,0,0,.18),rgba(0,0,0,.72))}
+#app{position:relative;height:100vh;display:grid;grid-template-columns:36% 1fr;gap:2.4rem;padding:2rem 2.4rem 3.6rem}
+.left{display:flex;flex-direction:column;justify-content:center;gap:1rem;min-width:0}
+#art{width:min(100%,15.5rem);aspect-ratio:1;border-radius:1rem;background:#111 center/cover;box-shadow:0 1.2rem 3rem rgba(0,0,0,.55);flex:none;transition:background-image .4s}
+.meta{display:flex;flex-direction:column;gap:.35rem;min-width:0}
+.tt{font-size:1.9rem;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ar{font-size:1.2rem;color:rgba(255,255,255,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pgw{display:flex;flex-direction:column;gap:.45rem}
+/* 進度條外面包一層較高的觸控區（上下各多 .8rem），手指才好點；拖曳時由 pointer 事件處理 */
+.hit{padding:.8rem 0;margin:-.8rem 0;touch-action:none;cursor:pointer}
+.pg{height:.38rem;border-radius:.2rem;background:rgba(255,255,255,.22);overflow:hidden;transition:height .15s}
+.hit.drag .pg{height:.7rem}
+.noseek .hit{pointer-events:none}
+.l{cursor:pointer;touch-action:manipulation}
+.pg i{display:block;height:100%;width:0;background:#fff;border-radius:.2rem}
+.tm{display:flex;justify-content:space-between;font-size:.95rem;color:rgba(255,255,255,.65);font-variant-numeric:tabular-nums}
+.ct{display:flex;justify-content:center;align-items:center;gap:2.4rem}
+.ct button{border:0;background:none;color:#fff;padding:.3rem;display:flex;font-family:inherit}
+.ct button:active{opacity:.55;transform:scale(.92)}
+.ct svg{width:2.4rem;height:2.4rem;fill:#fff}
+.ct #pp svg{width:3.2rem;height:3.2rem}
+.right{display:flex;flex-direction:column;min-width:0;min-height:0}
+.top{display:flex;align-items:center;gap:.5rem;flex:none;justify-content:flex-end}
+.top button{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:.5rem;font-size:1.1rem;width:2.2rem;height:1.7rem;font-family:inherit}
+#ld{font-size:.85rem;color:rgba(255,255,255,.65);min-width:5.5rem;text-align:center}
+#ly{flex:1;position:relative;overflow:hidden;min-height:0;
+    -webkit-mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent)}
+#tr{position:absolute;left:0;right:0;top:0;will-change:transform;transition:transform .8s cubic-bezier(.25,.8,.25,1)}
+.l{font-size:2.5rem;font-weight:800;line-height:1.25;text-align:left;padding:.4rem .6rem;color:rgba(255,255,255,.5);
+   transform:scale(.62);transform-origin:left center;opacity:.2;transition:transform .8s cubic-bezier(.25,.8,.25,1),opacity .8s}
+.l.cur{color:transparent;background:linear-gradient(90deg,#fff var(--p,0%),rgba(255,255,255,.42) var(--p,0%));-webkit-background-clip:text;background-clip:text}
+.msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);font-size:1.3rem;text-align:center}
+.pl{font-size:1.3rem;line-height:1.55;color:rgba(255,255,255,.85);white-space:pre-wrap;padding:.3rem .6rem;overflow:hidden}
+</style>
+<div id="bg"><div class="blob b0"></div><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div id="shade"></div></div>
+<div id="app">
+  <div class="left">
+    <div id="art"></div>
+    <div class="meta"><div class="tt" id="tt">—</div><div class="ar" id="ar"></div></div>
+    <div class="pgw"><div class="hit" id="hit"><div class="pg"><i id="pgi"></i></div></div><div class="tm"><span id="t1">0:00</span><span id="t2">0:00</span></div></div>
+    <div class="ct">
+      <button id="bp" aria-label="上一首"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM20 6v12L9.5 12z"/></svg></button>
+      <button id="pp" aria-label="播放／暫停"><svg viewBox="0 0 24 24" id="ppi"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+      <button id="bn" aria-label="下一首"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM4 6l10.5 6L4 18z"/></svg></button>
+    </div>
+  </div>
+  <div class="right">
+    <div class="top"><button id="lm">−</button><span id="ld"></span><button id="lp">＋</button></div>
+    <div id="ly"><div class="msg" id="msg">等待播放…</div><div id="tr"></div></div>
+  </div>
+</div>
+<script>
+// LEAD：歌詞提前顯示的毫秒數，「依播放器」各記一份（右上角 −／＋ 每次調 0.1 秒，記在這支手機的瀏覽器）。
+// 預設：Apple Music 歌詞實測慢約 1 秒 → 自動提前 1.0 秒；其他播放器（Spotify 等）都是 0。
+// 要改預設：改下面 LEAD_DEFAULTS（[播放器名稱的正規表示式, 毫秒]）；手動按 −／＋ 調過的值會優先於預設。
+var LEAD_DEFAULTS=[[/apple|itunes/i,1000]];
+var LEAD=0,leadApp=null;
+function defLead(app){for(var i=0;i<LEAD_DEFAULTS.length;i++)if(LEAD_DEFAULTS[i][0].test(app||''))return LEAD_DEFAULTS[i][1];return 0}
+function showLead(){$('#ld').textContent='提前 '+(LEAD/1000).toFixed(1)+' 秒'}
+// 換播放器時載入該播放器的提前量（有手動存過就用存的，否則用預設）
+function loadLead(app){leadApp=app||'';var v=defLead(leadApp);
+  try{var sv=localStorage.getItem('lyrLead2:'+leadApp);if(sv!==null&&!isNaN(+sv))v=+sv}catch(e){}
+  LEAD=v;showLead();curIdx=-2}
+function setLead(v){LEAD=Math.max(-2000,Math.min(4000,Math.round(v)));
+  try{localStorage.setItem('lyrLead2:'+(leadApp||''),String(LEAD))}catch(e){}
+  showLead();curIdx=-2}
+
+var LY=null,clk=0,clkAt=0,playing=false,built=null,els=[],curIdx=-2,dur=0,curTitle='';
+var canSeek=false,holdUntil=0,scrubbing=false,scrubMs=0;
+
+// ---- 跳轉：html 元件不能直接呼叫 agent，只能 phonebox.run(快捷鍵 id) ----
+// 把目標毫秒拆成「每 30 秒一格」(sk-c0…sk-c39) 加「每 1 秒一格」(sk-f0…sk-f29) 兩個快捷鍵，
+// 兩個都送到後由 seek.vbs 合併成 ms，呼叫 /api/media/seek?ms=。解析度 1 秒，最長 20 分鐘的歌。
+function seekTo(ms){
+  if(!canSeek||!dur)return;
+  ms=Math.max(0,Math.min(dur-1500,Math.floor(ms/1000)*1000));
+  var c=Math.floor(ms/30000),f=Math.floor(ms%30000/1000);
+  if(c>39)return;
+  clk=ms;clkAt=performance.now();holdUntil=performance.now()+2500;curIdx=-2; // 先在畫面上跳過去，不等 agent
+  phonebox.run('sk-c'+c);
+  setTimeout(function(){phonebox.run('sk-f'+f)},150);
+}
+var ly=$('#ly'),tr=$('#tr'),msg=$('#msg');
+
+// ---- 推送資料：封面／色盤、歌詞 ----
+function unwrap(it){var v=it.data&&it.data.value!==undefined?it.data.value:(it.value!==undefined?it.value:it);
+  if(typeof v==='string'){try{v=JSON.parse(v)}catch(e){return null}}return v}
+phonebox.on('push',function(p){
+  if(p&&p.art){var a=unwrap(p.art);if(a)applyArt(a)}
+  if(p&&p.lyr){var v=unwrap(p.lyr);if(!v)return;
+    // 推送存放區會一直留著上一首的歌詞直到新的送到：標題和目前播放的不同就忽略，避免找不到歌詞時顯示上一首的
+    if(curTitle&&v.title!==curTitle)return;
+    if(LY&&LY.title===v.title&&LY.artist===v.artist&&built)return;
+    LY=v;build()}});
+// lastArt：最近一次收到的封面；active：目前有沒有「正在播放的歌曲」（有標題才算）。
+// 推送存放區會一直留著上一首的封面，所以沒在播放時不能顯示它；等 active 變 true 再套用。
+var lastArt=null,active=false;
+function applyArt(a){
+  lastArt=a;
+  if(!active)return;                                   // 沒在播放：先存起來，不顯示
+  $('#art').style.backgroundImage='url('+a.img+')';
+  var bl=document.querySelectorAll('.blob');
+  (a.pal||[]).forEach(function(c,i){if(bl[i])bl[i].style.setProperty('--c',c)})}
+// 沒在播放（或播的不是歌曲，例如沒有標題）：清掉封面與背景色塊顏色，回到預設深色
+function clearArt(){
+  $('#art').style.backgroundImage='none';
+  document.querySelectorAll('.blob').forEach(function(b){b.style.removeProperty('--c')})}
+
+// ---- 播放狀態 ----
+phonebox.on('state',function(s){var m=s&&s.media;
+  var now=!!(m&&m.title);                              // 有媒體且有標題才當成「正在播放的歌曲」
+  if(now!==active){active=now;
+    if(active&&lastArt)applyArt(lastArt);              // 開始播放：套用先前存下的封面
+    else if(!active){clearArt();$('#tt').textContent='—';$('#ar').textContent='';playing=false;
+      $('#ppi').innerHTML='<path d="M7 4.5v15L19 12z"/>'}}
+  if(!m)return;
+  var target=(m.posMs||0)+(m.ageMs||0),cur=nowMs();
+  // 剛送出跳轉的 2.5 秒內不接受 state 校正（跳轉要經過快捷鍵腳本，state 還是舊位置），避免畫面先彈回去
+  if(performance.now()>holdUntil&&!scrubbing&&(!playing||Math.abs(cur-target)>400||!m.playing)){clk=target;clkAt=performance.now()}
+  playing=!!m.playing;dur=m.durMs||0;
+  if((m.app||'')!==leadApp)loadLead(m.app||'');
+  // 播放器不支援跳轉（canSeek 為 false，例如 Apple Music）就停用點擊
+  canSeek=!!m.canSeek;$('#app').classList.toggle('noseek',!canSeek);
+  $('#tt').textContent=m.title||'—';
+  // Apple Music 的歌手欄是「歌手 — 專輯」：上面顯示歌手，專輯接在後面
+  var ar=(m.artist||'').split(' — ');$('#ar').textContent=ar.length>1?ar[0]+' · '+ar.slice(1).join(' — '):(m.artist||'');
+  $('#ppi').innerHTML=playing?'<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>':'<path d="M7 4.5v15L19 12z"/>';
+  if(m.title!==curTitle){curTitle=m.title;
+    if(LY&&LY.title!==m.title){LY=null;built=null;tr.innerHTML='';showMsg('查詢歌詞中…')}}});
+function nowMs(){return clk+(playing?performance.now()-clkAt:0)}
+function showMsg(t){msg.style.display='flex';msg.textContent=t}
+function esc(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function mmss(ms){ms=Math.max(0,Math.floor(ms/1000));return Math.floor(ms/60)+':'+('0'+ms%60).slice(-2)}
+
+// ---- 歌詞 DOM ----
+function build(){
+  tr.innerHTML='';els=[];curIdx=-2;
+  if(!LY){showMsg('等待播放…');return}
+  if(LY.lines&&LY.lines.length){
+    msg.style.display='none';built='sync';
+    // 點歌詞跳到那一句：目標 = 該句時間 − 提前量（顯示用的 t 是 時鐘+LEAD），無條件捨去到秒，寧可早一點進來也不吃掉第一個字
+    LY.lines.forEach(function(l){var d=document.createElement('div');d.className='l';d.textContent=l[1]||'♪';
+      d.addEventListener('click',function(){seekTo(l[0]-LEAD)});tr.appendChild(d);els.push(d)});
+    tr.style.transform='translateY('+(ly.clientHeight/2)+'px)';
+  }else if(LY.plain){
+    msg.style.display='none';built='plain';tr.style.transition='none';tr.style.transform='none';
+    tr.innerHTML='<div class="pl">'+esc(LY.plain)+'</div>';
+  }else{built='none';showMsg('找不到這首歌的歌詞')}
+}
+
+// ---- 逐幀更新：進度條、歌詞行切換與逐字進度 ----
+function frame(){
+  requestAnimationFrame(frame);
+  var n=nowMs();
+  if(scrubbing)n=scrubMs; // 拖曳中：進度條與歌詞先跟著手指走，放開才真的跳轉
+  if(dur){$('#pgi').style.width=Math.min(100,n/dur*100).toFixed(2)+'%';$('#t1').textContent=mmss(n);$('#t2').textContent=mmss(dur)}
+  if(built!=='sync')return;
+  var t=n+LEAD,L=LY.lines,idx=-1;
+  for(var i=0;i<L.length;i++){if(L[i][0]<=t)idx=i;else break}
+  if(idx!==curIdx){
+    curIdx=idx;
+    els.forEach(function(e,i){var d=Math.abs(i-idx);
+      e.classList.toggle('cur',i===idx);
+      e.style.transform='scale('+(d===0?1:d===1?.74:.64)+')';
+      e.style.opacity=d===0?1:d===1?.6:d===2?.38:d===3?.22:.1});
+    var c=els[Math.max(0,idx)];
+    if(c)tr.style.transform='translateY('+(ly.clientHeight/2-(c.offsetTop+c.offsetHeight/2))+'px)';
+  }
+  if(idx>=0){
+    var s=L[idx][0],e=idx+1<L.length?L[idx+1][0]:s+4000;
+    var p=Math.max(0,Math.min(1,(t-s)/Math.max(300,(e-s)*1.0)));
+    els[idx].style.setProperty('--p',(p*100).toFixed(1)+'%')}
+}
+// 進度條：按下／拖曳／放開（pointer 事件，手指與滑鼠都適用）
+(function(){var hit=$('#hit');
+  function ms(e){var r=hit.getBoundingClientRect();return Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*dur}
+  hit.addEventListener('pointerdown',function(e){if(!canSeek||!dur)return;scrubbing=true;scrubMs=ms(e);hit.classList.add('drag');try{hit.setPointerCapture(e.pointerId)}catch(x){}});
+  hit.addEventListener('pointermove',function(e){if(scrubbing)scrubMs=ms(e)});
+  function end(e,ok){if(!scrubbing)return;scrubbing=false;hit.classList.remove('drag');if(ok)seekTo(ms(e))}
+  hit.addEventListener('pointerup',function(e){end(e,true)});
+  hit.addEventListener('pointercancel',function(e){end(e,false)});
+})();
+$('#bp').addEventListener('click',function(){phonebox.run('media-prev')});
+$('#pp').addEventListener('click',function(){phonebox.run('media-play')});
+$('#bn').addEventListener('click',function(){phonebox.run('media-next')});
+$('#lm').addEventListener('click',function(){setLead(LEAD-100)});
+$('#lp').addEventListener('click',function(){setLead(LEAD+100)});
+showLead();
+requestAnimationFrame(frame);
+addEventListener('resize',function(){curIdx=-2});
+</script>

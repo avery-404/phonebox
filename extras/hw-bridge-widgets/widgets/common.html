@@ -1,0 +1,68 @@
+<!-- 共用樣式與繪圖函式：各頁面建置時會自動接在最前面。 -->
+<style>
+:root{--t:#eef2f6;--m:#94a3b8;--card:#000;--cpu:#2dd4bf;--gpu:#a3e635;--tmp:#fb923c;
+--pwr:#facc15;--clk:#a78bfa;--net:#38bdf8;--up:#60a5fa;--ram:#c084fc;--fan:#22d3ee;--fps:#4ade80}
+*{box-sizing:border-box}
+body{font-size:1rem;color:var(--t)}
+#app{display:grid;gap:.55rem;height:100vh;padding:.55rem}
+.card{background:#000;border-radius:1.1rem;padding:.7rem 1rem;display:flex;flex-direction:column;min-height:0;min-width:0}
+.h{font-size:.95rem;letter-spacing:.14em;color:var(--m)}
+.row{display:flex;align-items:baseline;gap:.9rem;flex-wrap:wrap}
+.big{font-size:3.4rem;font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums}
+.mid{font-size:1.7rem;font-weight:500;font-variant-numeric:tabular-nums}
+.unit{font-size:1.2rem;color:var(--m);margin-left:.2rem;font-weight:400}
+.kv{display:flex;flex-direction:column;line-height:1.15}
+.kv b{font-size:1.55rem;font-weight:500;font-variant-numeric:tabular-nums}
+.kv i{font-style:normal;font-size:.85rem;color:var(--m);letter-spacing:.05em}
+canvas{flex:1;width:100%;min-height:0;margin-top:.4rem}
+.bar{height:.55rem;border-radius:.3rem;background:rgba(255,255,255,.09);overflow:hidden}
+.bar>i{display:block;height:100%;width:0;border-radius:.3rem;background:var(--c,var(--cpu));transition:width .4s}
+.sub{font-size:.95rem;color:var(--m)}
+/* ===== LCD 方案（build_panel.ps1 -Profile lcd 會替 <html> 加 .lcd）=====
+   LCD 的「黑」其實是背光透出的灰，純黑底又深色卡片會又暗又沒層次。
+   做法：整頁鋪一層明顯的動態彩色漸層（只用 transform 位移，GPU 合成、很省效能），卡片改半透明深藍＋淡框，文字拉亮。 */
+/* 背景改由 APK 的頁面層漸層（extra.css）提供，小工具本身保持透明，整頁才會一致 */
+html.lcd{background:transparent}
+.lcd{--t:#fff;--m:#c3cee0}
+.lcd .card{background:rgba(7,12,26,.58);border:1px solid rgba(255,255,255,.16)}
+.lcd .bar{background:rgba(255,255,255,.18)}
+</style>
+<script>
+// LCD 判斷：螢幕長邊／短邊 < 2（16:9 的 XZ Premium = 1.78）就套 LCD 樣式；21:9 的 OLED（Xperia 1 II = 2.33）維持純黑。
+// 用 screen 而不是 iframe 大小，這樣只佔半頁的元件也判斷得對。
+(function(){var a=Math.max(screen.width,screen.height)/Math.min(screen.width,screen.height);if(a<2)document.documentElement.classList.add('lcd')})();
+// 依 iframe 高度設定根字級，所有尺寸用 rem，換螢幕大小也會等比例縮放
+(function(){var R=function(){document.documentElement.style.fontSize=Math.max(8,innerHeight/36)+'px'};R();addEventListener('resize',R)})();
+window.$=function(s){return document.querySelector(s)};
+// 數字格式：空值顯示破折號
+window.fmt=function(v,d){return(v==null||isNaN(v))?'—':(+v).toFixed(d==null?0:d)};
+// 固定長度的歷史資料（每秒一筆，預設保留 120 秒）
+window.Hist=function(n){var a=[];n=n||120;return{push:function(v){a.push(v==null?null:+v);if(a.length>n)a.shift()},get:function(){return a},last:function(){return a.length?a[a.length-1]:null}}};
+// 折線＋面積圖。series=[{data:[...],color:'#rrggbb'}]；o={min,max,minMax,points}
+window.draw=function(cv,series,o){
+  o=o||{};var dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr)}
+  var c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
+  var lo=o.min!=null?o.min:0,hi=o.max;
+  if(hi==null){hi=0;series.forEach(function(s){s.data.forEach(function(v){if(v!=null&&v>hi)hi=v})});hi=Math.max(hi*1.15,o.minMax||1)}
+  var n=o.points||120,st=w/(n-1);
+  series.forEach(function(s){
+    var d=s.data,pts=[];
+    for(var i=0;i<d.length;i++){var v=d[i];if(v==null)continue;
+      pts.push([w-(d.length-1-i)*st,h-2-(Math.min(Math.max(v,lo),hi)-lo)/(hi-lo)*(h-4)])}
+    if(pts.length<2)return;
+    c.beginPath();pts.forEach(function(p,i){i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])});
+    c.strokeStyle=s.color;c.lineWidth=2.4;c.lineJoin='round';c.stroke();
+    if(s.fill!==false){
+      c.lineTo(pts[pts.length-1][0],h);c.lineTo(pts[0][0],h);c.closePath();
+      var gr=c.createLinearGradient(0,0,0,h);gr.addColorStop(0,s.color+'55');gr.addColorStop(1,s.color+'00');
+      c.fillStyle=gr;c.fill()}
+  });
+};
+// 取得推送的 hw 資料（相容不同的儲存格式），回呼收到解析後的物件
+window.onHw=function(cb){phonebox.on('push',function(p){var it=p&&p.hw;if(!it)return;
+  var v=it.data&&it.data.value!==undefined?it.data.value:(it.value!==undefined?it.value:it);
+  if(typeof v==='string'){try{v=JSON.parse(v)}catch(e){return}}cb(v)})};
+// 電腦端狀態（網路、記憶體總量等原生資料）
+window.onState=function(cb){phonebox.on('state',cb)};
+</script>

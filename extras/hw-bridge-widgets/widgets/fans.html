@@ -1,0 +1,85 @@
+<!-- FanControl 內容頁（仿 FanControl 原本的卡片版面，不用圖表）：
+     上方「風扇 · 水泵」：每個有在轉的風扇一張卡片（名稱、轉速、控制輸出％）
+     下方「溫度」：只放 CPU／GPU 相關溫度的卡片
+     資料來源：FanControl 的 gRPC（hw_bridge.py 讀取後推送在 d.fc）。 -->
+<style>
+#app{grid-template-columns:1fr;grid-template-rows:1fr auto;gap:.55rem}
+.sec{display:flex;flex-direction:column;min-height:0}
+.tiles{display:grid;gap:.5rem;margin-top:.45rem;flex:1;min-height:0;grid-auto-rows:1fr}
+.t{background:#0b0d10;border-radius:.9rem;padding:.45rem .7rem;display:flex;flex-direction:column;justify-content:space-between;min-width:0;min-height:0;border-left:.28rem solid var(--tc,var(--fan))}
+.t .nm{font-size:1.05rem;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t .vl{font-size:2.9rem;font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums;color:var(--tc,var(--t))}
+.t .vl small{font-size:1.1rem;color:var(--m);font-weight:400;margin-left:.2rem}
+.t .sub{font-size:1.05rem;color:var(--m);font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;gap:.4rem}
+.t .bar{height:.5rem}
+.t.idle{opacity:.55}
+.lcd .t{background:rgba(7,12,26,.62)}
+.tmpt .vl{font-size:2rem}
+.tmpt{padding:.35rem .7rem}
+.stop{font-size:.85rem;color:var(--m);margin-top:.3rem}
+</style>
+<div id="app">
+  <div class="card sec" style="flex:1">
+    <div class="h" id="fh">風扇 · 水泵</div>
+    <div class="tiles" id="fans"></div>
+    <div class="stop" id="stop"></div>
+  </div>
+  <div class="card sec">
+    <div class="h">溫度（CPU · GPU）</div>
+    <div class="tiles" id="tmp" style="flex:none"></div>
+  </div>
+</div>
+<script>
+// 只留 CPU／GPU（含水冷液溫）相關溫度
+var TEMPS=['CPU 封裝','CPU 最高核心','VRM','GPU 核心','GPU 熱點','GPU 顯存','水冷液溫'];
+function nice(n){
+  var m=n.match(/^Control (\d) - NVIDIA/);if(m)return 'GPU 風扇 '+m[1];
+  if(n==='Pump Fan')return '主機板 水泵接頭';
+  if(n==='Pump - Kraken 2024 Plus')return 'Kraken 水泵';
+  if(n==='Fan - Kraken 2024 Plus')return 'Kraken 風扇';
+  return n;
+}
+// 各感測器自己的溫度門檻 [黃, 橘, 紅]（°C）：達到才變色，綠＝正常。
+// 水冷液溫正常約 30 多度，到 45 度就已經很不正常；CPU／GPU 依各自耐受度（10900K 約 100、3090 核心 93／顯存 105）訂。
+var TH={'水冷液溫':[36,41,46],'CPU 封裝':[60,75,88],'CPU 最高核心':[60,75,88],'VRM':[70,85,100],
+        'GPU 核心':[62,72,82],'GPU 熱點':[75,85,95],'GPU 顯存':[85,95,102]};
+var TC=['#2dd4bf','#facc15','#fb923c','#ef4444'];
+function tcolor(v,label){var t=TH[label]||[50,65,80],i=v>=t[2]?3:v>=t[1]?2:v>=t[0]?1:0;return TC[i]}
+var fanEls={},fanKey='',tmpEls={},tmpKey='';
+function fanTile(name){var e=document.createElement('div');e.className='t';
+  e.innerHTML='<div class="nm"></div><div class="vl"><span></span><small>RPM</small></div><div><div class="sub"><span>控制輸出</span><span class="pc"></span></div><div class="bar"><i></i></div></div>';
+  e.querySelector('.nm').textContent=nice(name);return e}
+function tmpTile(name){var e=document.createElement('div');e.className='t tmpt';
+  e.innerHTML='<div class="nm"></div><div class="vl"><span></span><small>°C</small></div>';
+  e.querySelector('.nm').textContent=name;return e}
+onHw(function(d){
+  var fc=d.fc;if(!fc)return;
+  // 主機板「Pump Fan」接頭接的就是 Kraken 水泵，和 Kraken 外掛回報的是同一顆，只留 Kraken 那張，避免重複
+  fc.fans=fc.fans.filter(function(f){return f[0]!=='Pump Fan'});
+  // 不顯示：CPU Fan、System Fan #2（使用者不需要）；GPU 風扇（Control 1/2）即使零轉速也常駐顯示（低溫時 GPU 風扇會停轉再起轉，不要讓卡片忽隱忽現）
+  var HIDE=['CPU Fan','System Fan #2(左上)'];
+  var on=fc.fans.filter(function(f){return HIDE.indexOf(f[0])<0&&(f[1]>0||/^Control \d - NVIDIA/.test(f[0]))});
+  var off=[];
+  var key=on.map(function(f){return f[0]}).join('|');
+  if(key!==fanKey){fanKey=key;fanEls={};var box=$('#fans');box.innerHTML='';
+    // 欄數：依數量自動排成接近 4 欄的格子
+    var cols=Math.min(5,Math.max(2,Math.ceil(on.length/2)));
+    box.style.gridTemplateColumns='repeat('+cols+',1fr)';
+    on.forEach(function(f){var e=fanTile(f[0]);box.appendChild(e);fanEls[f[0]]=e})}
+  // 零轉速（GPU 風扇零轉模式）卡片變暗，顯示「待機」
+  on.forEach(function(f){var e=fanEls[f[0]];if(!e)return;
+    e.querySelector('.vl span').textContent=fmt(f[1]);e.classList.toggle('idle',!(f[1]>0));
+    e.querySelector('.pc').textContent=f[2]==null?'—':fmt(f[2])+'%';
+    e.querySelector('i').style.width=Math.min(100,f[2]==null?0:f[2])+'%'});
+  $('#fh').textContent='風扇 · 水泵（'+on.filter(function(f){return f[1]>0}).length+' 個運轉中）';
+  $('#stop').textContent=off.length?'未運轉／未接：'+off.join('、'):'';
+  var temps=fc.temps.filter(function(t){return TEMPS.indexOf(t[0])>=0});
+  var tk=temps.map(function(t){return t[0]}).join('|');
+  if(tk!==tmpKey){tmpKey=tk;tmpEls={};var tb=$('#tmp');tb.innerHTML='';
+    tb.style.gridTemplateColumns='repeat('+Math.max(1,temps.length)+',1fr)';
+    temps.forEach(function(t){var e=tmpTile(t[0]);tb.appendChild(e);tmpEls[t[0]]=e})}
+  temps.forEach(function(t){var e=tmpEls[t[0]];if(!e)return;
+    e.querySelector('.vl span').textContent=fmt(t[1],1);
+    e.style.setProperty('--tc',tcolor(t[1],t[0]))});
+});
+</script>

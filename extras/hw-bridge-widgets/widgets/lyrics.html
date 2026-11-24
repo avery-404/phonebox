@@ -1,0 +1,90 @@
+<!-- 歌詞頁：資料由 hw_bridge.py 查 LRCLIB 後推送（key = lyr），播放位置取自 PhoneBox state 的 media。
+     動態效果：整份歌詞排成一欄，當前行置中並隨播放平滑捲動；當前行放大、逐字由灰轉白（依該行進度），
+     離當前行越遠越暗越小。時間用 requestAnimationFrame 逐幀內插，只有誤差超過 0.4 秒才跟著 state 校正，避免抖動。
+     沒有同步歌詞就顯示純文字，找不到就提示。純黑背景（OLED）。 -->
+<style>
+html,body{background:transparent}
+#app{height:100vh;padding:.4rem 1rem;display:flex;flex-direction:column;gap:.3rem;overflow:hidden}
+.top{display:flex;align-items:center;gap:.5rem;flex:none}
+.hd{font-size:.9rem;color:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.top button{background:#11151a;color:#cbd5e1;border:0;border-radius:.5rem;font-size:1.1rem;width:2.2rem;height:1.7rem;font-family:inherit}
+.top button:active{background:#2a313b}
+#ld{font-size:.85rem;color:var(--m);min-width:5.5rem;text-align:center}
+#ly{flex:1;position:relative;overflow:hidden;min-height:0;
+    -webkit-mask-image:linear-gradient(transparent,#000 22%,#000 78%,transparent);mask-image:linear-gradient(transparent,#000 22%,#000 78%,transparent)}
+#tr{position:absolute;left:0;right:0;top:0;will-change:transform;transition:transform .35s cubic-bezier(.22,.8,.3,1)}
+.l{font-size:2.3rem;font-weight:700;line-height:1.25;text-align:center;padding:.35rem .5rem;
+   transform:scale(.62);opacity:.07;transition:transform .35s cubic-bezier(.22,.8,.3,1),opacity .35s;
+   color:#8a94a3}
+.l.cur{color:transparent;background:linear-gradient(90deg,#fff var(--p,0%),#6b7686 var(--p,0%));-webkit-background-clip:text;background-clip:text}
+.msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--m);font-size:1.3rem;text-align:center}
+.pl{font-size:1.25rem;line-height:1.5;color:#cbd5e1;white-space:pre-wrap;padding:.3rem .5rem;overflow:hidden}
+</style>
+<div id="app"><div class="top"><div class="hd" id="hd">歌詞</div><button id="lm">−</button><span id="ld"></span><button id="lp">＋</button></div><div id="ly"><div class="msg" id="msg">等待播放…</div><div id="tr"></div></div></div>
+<script>
+// LEAD：提前顯示的毫秒數，抵消推送與繪圖的延遲（覺得歌詞偏慢就調大、偏快就調小）
+// 預設 800；可在右上角用「−／＋」每次調 0.2 秒，數值會記在這支手機的瀏覽器裡（讀寫失敗就只在本次有效）
+var LEAD=800;
+try{var sv=localStorage.getItem('lyrLead');if(sv!==null&&!isNaN(+sv))LEAD=+sv}catch(e){}
+function setLead(v){LEAD=Math.max(-2000,Math.min(4000,v));try{localStorage.setItem('lyrLead',String(LEAD))}catch(e){}
+  $('#ld').textContent='提前 '+(LEAD/1000).toFixed(1)+' 秒';curIdx=-2}
+var LY=null,clk=0,clkAt=0,playing=false,built=null,els=[],curIdx=-2;
+var ly=$('#ly'),tr=$('#tr'),msg=$('#msg');
+
+phonebox.on('push',function(p){var it=p&&p.lyr;if(!it)return;
+  var v=it.data&&it.data.value!==undefined?it.data.value:(it.value!==undefined?it.value:it);
+  if(typeof v==='string'){try{v=JSON.parse(v)}catch(e){return}}
+  if(LY&&LY.title===v.title&&LY.artist===v.artist&&built)return; // 同一首的重送不重建
+  LY=v;build()});
+phonebox.on('state',function(s){var m=s&&s.media;if(!m)return;
+  var target=(m.posMs||0)+(m.ageMs||0);
+  // 時鐘校正：誤差小就維持內插（避免抖動），大就直接跳
+  var cur=nowMs();
+  if(!playing||Math.abs(cur-target)>400||!m.playing){clk=target;clkAt=performance.now()}
+  playing=!!m.playing;
+  if(LY&&m.title&&LY.title!==m.title){LY=null;built=null;tr.innerHTML='';showMsg('查詢歌詞中…')}});
+function nowMs(){return clk+(playing?performance.now()-clkAt:0)}
+function showMsg(t){msg.style.display='flex';msg.textContent=t}
+function esc(t){var d=document.createElement('div');d.textContent=t;return d.innerHTML}
+
+// 建立整份歌詞的 DOM
+function build(){
+  tr.innerHTML='';els=[];curIdx=-2;
+  if(!LY){showMsg('等待播放…');return}
+  $('#hd').textContent=LY.title+' · '+LY.artist;
+  if(LY.lines&&LY.lines.length){
+    msg.style.display='none';built='sync';
+    LY.lines.forEach(function(l){var d=document.createElement('div');d.className='l';d.textContent=l[1]||'♪';tr.appendChild(d);els.push(d)});
+    tr.style.transform='translateY('+(ly.clientHeight/2)+'px)';
+  }else if(LY.plain){
+    msg.style.display='none';built='plain';tr.style.transition='none';tr.style.transform='none';
+    tr.innerHTML='<div class="pl">'+esc(LY.plain)+'</div>';
+  }else{built='none';showMsg('找不到這首歌的歌詞')}
+}
+
+// 逐幀更新：換行時捲動並重設各行的大小／亮度；當前行持續更新「逐字變白」進度
+function frame(){
+  requestAnimationFrame(frame);
+  if(built!=='sync')return;
+  var t=nowMs()+LEAD,L=LY.lines,idx=-1;
+  for(var i=0;i<L.length;i++){if(L[i][0]<=t)idx=i;else break}
+  if(idx!==curIdx){
+    curIdx=idx;
+    els.forEach(function(e,i){var d=Math.abs(i-idx);
+      e.classList.toggle('cur',i===idx);
+      e.style.transform='scale('+(d===0?1:d===1?.7:.58)+')';
+      e.style.opacity=d===0?1:d===1?.55:d===2?.3:d===3?.16:.07});
+    var c=els[Math.max(0,idx)];
+    if(c)tr.style.transform='translateY('+(ly.clientHeight/2-(c.offsetTop+c.offsetHeight/2))+'px)';
+  }
+  if(idx>=0){
+    var s=L[idx][0],e=idx+1<L.length?L[idx+1][0]:s+4000;
+    var p=Math.max(0,Math.min(1,(t-s)/Math.max(300,(e-s)*.85)));
+    els[idx].style.setProperty('--p',(p*100).toFixed(1)+'%')}
+}
+$('#lm').addEventListener('click',function(){setLead(LEAD-200)});
+$('#lp').addEventListener('click',function(){setLead(LEAD+200)});
+setLead(LEAD);
+requestAnimationFrame(frame);
+addEventListener('resize',function(){curIdx=-2});
+</script>

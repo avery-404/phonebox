@@ -1,0 +1,64 @@
+<!-- 效能頁：CPU 使用率／溫度（圖形）、頻率與功耗（數字）、各核心、記憶體（網路與磁碟已搬到「遊戲／網路」頁） -->
+<style>
+#app{grid-template-columns:30fr 27fr 31fr;grid-template-rows:23fr 12fr}
+.cores{display:grid;grid-template-columns:1fr;gap:.45rem 1rem;margin-top:.5rem;flex:1;align-content:space-between}
+.core{display:flex;flex-direction:column;gap:.2rem}
+.core .top{display:flex;justify-content:space-between;font-size:.95rem;font-variant-numeric:tabular-nums}
+.core .top span:first-child{color:var(--m)}
+.dsk{display:grid;grid-template-columns:auto 1fr auto;gap:.25rem .8rem;margin-top:.4rem;font-size:1rem;font-variant-numeric:tabular-nums;align-content:space-around;flex:1}
+.dsk span:first-child{color:var(--m)}
+.dsk span:last-child{color:var(--m);text-align:right}
+</style>
+<div id="app">
+  <div class="card" style="grid-column:1;grid-row:1">
+    <div class="h">CPU 使用率</div>
+    <div class="row"><span class="big" id="cu" style="color:var(--cpu)">—</span><span class="unit">%</span></div>
+    <canvas id="g1"></canvas>
+  </div>
+  <div class="card" style="grid-column:2;grid-row:1">
+    <div class="h">CPU 溫度</div>
+    <div class="row"><span class="big" id="ct" style="color:var(--tmp)">—</span><span class="unit">°C</span>
+      <div class="kv"><b id="cf">—</b><i>時脈 GHz</i></div>
+      <div class="kv"><b id="cp">—</b><i>功耗 W</i></div>
+      <div class="kv"><b id="cl">—</b><i>水冷液溫 °C</i></div></div>
+    <canvas id="g2"></canvas>
+  </div>
+  <div class="card" style="grid-column:3;grid-row:1 / span 2">
+    <div class="h">各核心 使用率 · 時脈 · 溫度</div>
+    <div class="cores" id="cores"></div>
+  </div>
+  <div class="card" style="grid-column:1 / span 2;grid-row:2">
+    <div class="h">記憶體</div>
+    <div class="row"><span class="mid" id="rt" style="color:var(--ram)">—</span><span class="sub" id="rs"></span></div>
+    <canvas id="g3"></canvas>
+  </div>
+</div>
+<script>
+var hc=Hist(120),ht=Hist(120),hr=Hist(120),ramTotal=32,coreEls=[];
+function redraw(){
+  draw($('#g1'),[{data:hc.get(),color:'#2dd4bf'}],{min:0,max:100});
+  draw($('#g2'),[{data:ht.get(),color:'#fb923c'}],{min:20,max:100});
+  draw($('#g3'),[{data:hr.get(),color:'#c084fc'}],{min:0,max:100});
+}
+onHw(function(d){
+  var c=d.cpu||{};hc.push(c.u);ht.push(c.t);
+  $('#cu').textContent=fmt(c.u);$('#ct').textContent=fmt(c.t);
+  $('#cf').textContent=c.f==null?'—':(c.f/1000).toFixed(2);$('#cp').textContent=fmt(c.p);$('#cl').textContent=fmt((d.kr||{}).liq,1);
+  var cores=c.cores||[];
+  if(coreEls.length!==cores.length){
+    $('#cores').innerHTML='';coreEls=cores.map(function(_,i){
+      var e=document.createElement('div');e.className='core';
+      e.innerHTML='<div class="top"><span>核心 '+(i+1)+'</span><span class="v"></span></div><div class="bar"><i></i></div>';
+      $('#cores').appendChild(e);return e})}
+  cores.forEach(function(k,i){var e=coreEls[i];
+    e.querySelector('.v').textContent=fmt(k[0])+'%  ·  '+(k[1]==null?'—':(k[1]/1000).toFixed(2))+' GHz  ·  '+fmt(k[2])+'°';
+    e.querySelector('i').style.width=Math.min(100,k[0]||0)+'%'});
+  var used=d.ram==null?null:d.ram/1024;
+  if(used!=null){hr.push(used/ramTotal*100);$('#rt').textContent=used.toFixed(1)+' / '+Math.round(ramTotal)+' GB';
+    $('#rs').textContent=Math.round(used/ramTotal*100)+'%'}
+  redraw();
+});
+onState(function(s){var pc=s&&s.pc;if(!pc)return;
+  if(pc.ramTotalGb)ramTotal=pc.ramTotalGb;
+  redraw()});
+</script>

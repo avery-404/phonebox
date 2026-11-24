@@ -1,0 +1,80 @@
+<!-- 遊戲／網路頁（合併版）：
+     左邊 FPS（1% / 0.1% Low、Frametime 圖）；右邊 Ping、網路上下載、磁碟。
+     FPS 來自 RTSS（hw_bridge 推送的 d.fps），Ping／網路／磁碟容量來自 PhoneBox 的 state（s.ping、s.pc）。 -->
+<style>
+#app{grid-template-columns:44fr 56fr;grid-template-rows:1fr 1fr .9fr}
+.fps{grid-column:1;grid-row:1 / span 3}
+.fps .num{font-size:7.2rem;font-weight:700;line-height:1;color:var(--fps);font-variant-numeric:tabular-nums}
+.fps .stat{display:flex;gap:1.4rem;margin:.5rem 0 .2rem}
+.state{font-size:.95rem;color:var(--m);margin-top:.2rem}
+.dk{display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem .9rem;margin-top:.4rem;flex:1;align-content:space-around}
+.dk .d{display:flex;flex-direction:column;gap:.25rem;font-variant-numeric:tabular-nums}
+.dk .d .top{display:flex;justify-content:space-between;font-size:1rem}
+.dk .d .top span:first-child{color:var(--m)}
+.dk .d .sm{font-size:.85rem;color:var(--m)}
+</style>
+<div id="app">
+  <div class="card fps">
+    <div class="h">FPS</div>
+    <div class="row"><span class="num" id="fps">—</span><span class="unit">FPS</span></div>
+    <div class="stat">
+      <div class="kv"><b id="l1">—</b><i>1% LOW</i></div>
+      <div class="kv"><b id="l01">—</b><i>0.1% LOW</i></div>
+      <div class="kv"><b id="fa">—</b><i>平均</i></div>
+      <div class="kv"><b id="ft">—</b><i>FRAMETIME ms</i></div>
+    </div>
+    <div class="state" id="st">等待遊戲…（RTSS 偵測到遊戲後才會有 FPS）</div>
+    <canvas id="gf" style="flex:1.6"></canvas>
+    <div class="h" style="margin-top:.5rem">FRAMETIME</div>
+    <canvas id="gt" style="flex:1"></canvas>
+  </div>
+  <div class="card" style="grid-column:2;grid-row:1">
+    <div class="h">PING（1.1.1.1）</div>
+    <div class="row"><span class="mid" id="pm" style="color:var(--net)">—</span><span class="unit">ms</span>
+      <div class="kv"><b id="pa">—</b><i>平均 ms</i></div>
+      <div class="kv"><b id="pl">—</b><i>封包遺失 %</i></div></div>
+    <canvas id="g1"></canvas>
+  </div>
+  <div class="card" style="grid-column:2;grid-row:2">
+    <div class="h">網路</div>
+    <div class="row"><span class="mid" style="color:var(--net)">↓ <span id="nd">—</span></span><span class="mid" style="color:var(--up)">↑ <span id="nu">—</span></span><span class="sub">MB/s</span></div>
+    <canvas id="g2"></canvas>
+  </div>
+  <div class="card" style="grid-column:2;grid-row:3">
+    <div class="h">磁碟 容量 <span id="rw" style="color:var(--m);font-weight:400"></span></div>
+    <div class="dk" id="dk"></div>
+  </div>
+</div>
+<script>
+var H={f:Hist(120),ft:Hist(120),pg:Hist(120),dn:Hist(120),up:Hist(120)};
+function redraw(){
+  draw($('#gf'),[{data:H.f.get(),color:'#4ade80'}],{min:0,minMax:60});
+  draw($('#gt'),[{data:H.ft.get(),color:'#38bdf8'}],{min:0,minMax:20});
+  draw($('#g1'),[{data:H.pg.get(),color:'#38bdf8'}],{min:0,minMax:60});
+  draw($('#g2'),[{data:H.dn.get(),color:'#38bdf8'},{data:H.up.get(),color:'#60a5fa'}],{min:0,minMax:1});
+}
+onHw(function(d){
+  var f=d.fps||{};
+  var playing=f.now!=null&&f.now>0;
+  H.f.push(playing?f.now:null);H.ft.push(playing&&f.ft>0?f.ft:null);
+  $('#fps').textContent=playing?fmt(f.now):'—';
+  $('#l1').textContent=fmt(f.l1);$('#l01').textContent=fmt(f.l01);$('#fa').textContent=fmt(f.avg);
+  $('#ft').textContent=playing?fmt(f.ft,1):'—';
+  $('#st').textContent=playing?'遊戲執行中':'等待遊戲…（RTSS 偵測到遊戲後才會有 FPS）';
+  // 磁碟總讀寫（各碟加總）
+  var rd=0,wr=0;(d.dsk||[]).forEach(function(x){rd+=x[1]||0;wr+=x[2]||0});
+  $('#rw').textContent='　讀 '+rd.toFixed(1)+' · 寫 '+wr.toFixed(1)+' MB/s';
+  redraw();
+});
+onState(function(s){
+  if(!s)return;
+  var p=s.ping||{};H.pg.push(p.ms==null?null:p.ms);
+  $('#pm').textContent=fmt(p.ms);$('#pa').textContent=fmt(p.avgMs,1);$('#pl').textContent=fmt(p.lossPct);
+  var pc=s.pc;if(pc){
+    var dn=(pc.netDownBps||0)/1048576,up=(pc.netUpBps||0)/1048576;H.dn.push(dn);H.up.push(up);
+    $('#nd').textContent=dn.toFixed(2);$('#nu').textContent=up.toFixed(2);
+    $('#dk').innerHTML=(pc.disks||[]).map(function(k){var pct=k.totalGb?Math.round(k.usedGb/k.totalGb*100):0;
+      return '<div class="d"><div class="top"><span>'+k.name+'</span><span>'+pct+'%</span></div><div class="bar"><i style="width:'+pct+'%"></i></div><div class="sm">'+Math.round(k.usedGb)+' / '+Math.round(k.totalGb)+' GB</div></div>'}).join('')}
+  redraw();
+});
+</script>

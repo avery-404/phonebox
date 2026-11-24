@@ -1,0 +1,41 @@
+<!-- GPU 圖形頁（放在原生 NVIDIA 卡片右邊）。
+     原生卡片已有：使用率、溫度、VRAM、功耗、核心／記憶體時脈、風扇、驅動，所以這裡只放「歷史圖形」和原生沒有的資料：
+     VRAM 控制器／影片引擎／PCIe 使用率、溫度牆／功耗牆是否觸發、（水冷液溫屬於 CPU 水冷，改放在效能頁與風扇頁）。 -->
+<style>
+#app{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr .42fr}
+.strip{grid-column:1 / span 2;display:grid;grid-template-columns:repeat(5,1fr);gap:.4rem;padding:.55rem .9rem;align-content:center}
+</style>
+<div id="app">
+  <div class="card"><div class="h">GPU 使用率</div><div class="row"><span class="mid" id="u" style="color:var(--gpu)">—</span><span class="unit">%</span></div>
+    <canvas id="g1"></canvas></div>
+  <div class="card"><div class="h">GPU 溫度</div><div class="row"><span class="mid" id="t" style="color:var(--tmp)">—</span><span class="unit">°C</span></div>
+    <canvas id="g2"></canvas></div>
+  <div class="card"><div class="h">GPU 熱點 · 顯存溫度</div><div class="row"><span class="mid" id="hs" style="color:var(--tmp)">—</span><span class="unit">°C 熱點</span><span class="mid" id="mj" style="color:#f87171">—</span><span class="unit">°C 顯存</span></div>
+    <canvas id="g3"></canvas></div>
+  <div class="card"><div class="h">GPU 功耗</div><div class="row"><span class="mid" id="p" style="color:var(--pwr)">—</span><span class="unit">W</span></div>
+    <canvas id="g4"></canvas></div>
+  <div class="card strip">
+    <div class="kv"><b id="fb">—</b><i>VRAM 控制器 %</i></div>
+    <div class="kv"><b id="vid">—</b><i>影片引擎 %</i></div>
+    <div class="kv"><b id="bus">—</b><i>PCIe 匯流排 %</i></div>
+    <div class="kv"><b id="wl">—</b><i>溫度牆</i></div>
+    <div class="kv"><b id="pl">—</b><i>功耗牆</i></div>
+  </div>
+</div>
+<script>
+var H={u:Hist(120),t:Hist(120),hs:Hist(120),mj:Hist(120),p:Hist(120)};
+function tv(fc,label){if(!fc)return null;for(var i=0;i<fc.temps.length;i++)if(fc.temps[i][0]===label)return fc.temps[i][1];return null}
+onHw(function(d){
+  var g=d.gpu||{},hs=tv(d.fc,'GPU 熱點'),mj=tv(d.fc,'GPU 顯存');
+  H.u.push(g.u);H.t.push(g.t);H.hs.push(hs);H.mj.push(mj);H.p.push(g.p);
+  $('#u').textContent=fmt(g.u);$('#t').textContent=fmt(g.t);$('#p').textContent=fmt(g.p);
+  $('#hs').textContent=fmt(hs);$('#mj').textContent=fmt(mj);
+  $('#fb').textContent=fmt(g.fb);$('#vid').textContent=fmt(g.vid);$('#bus').textContent=fmt(g.bus);
+  var yn=function(v){return v==null?'—':(v>0?'觸發':'正常')};
+  $('#wl').textContent=yn(g.lt);$('#pl').textContent=yn(g.lp);
+  draw($('#g1'),[{data:H.u.get(),color:'#a3e635'}],{min:0,max:100});
+  draw($('#g2'),[{data:H.t.get(),color:'#fb923c'}],{min:20,max:100});
+  draw($('#g3'),[{data:H.hs.get(),color:'#fb923c'},{data:H.mj.get(),color:'#f87171'}],{min:20,max:100});
+  draw($('#g4'),[{data:H.p.get(),color:'#facc15'}],{min:0,minMax:100});
+});
+</script>
