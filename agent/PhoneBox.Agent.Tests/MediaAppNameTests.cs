@@ -13,5 +13,5 @@ public sealed class MediaAppNameTests
     [InlineData("org.videolan.vlc", "VLC")]
     [InlineData("SomeCompany.SomePlayer!App", "SomeCompany")]
     public void KnownPlayersGetTheirNameAndOthersTheirId(string id, string expected)
-        => Assert.Equal(expected, MediaMonitor.FriendlyApp(id));
+        => Assert.Equal(expected, MediaAppName.Friendly(id));
 }
