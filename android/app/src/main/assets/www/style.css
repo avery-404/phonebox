@@ -156,7 +156,7 @@ body.dots-hidden #dots { display: none; }
    the side bar (pb-vertical) are untouched. */
 #dots.pagebar.pb-tight:not(.pb-vertical) { gap: 2px; padding: 3px; }
 #dots.pagebar.pb-tight:not(.pb-vertical) .dot { padding: 0 9px; gap: 5px; max-width: none; }
-#dots.pagebar.pb-tight:not(.pb-vertical) .dot:not(.on) .dot-nm { display: none; }
+#dots.pagebar.pb-tight:not(.pb-vertical) .dot:not(.on) .dot-ic + .dot-nm { display: none; } /* only when an icon stands in front of the name: a page without an icon keeps its name */
 #dots.pagebar.pb-tight:not(.pb-vertical) .dot.on .dot-nm { max-width: none; font-size: 13px; overflow: visible; text-overflow: clip; }
 #dots.pagebar.pb-tight:not(.pb-vertical) .page-all, #dots.pagebar.pb-tight:not(.pb-vertical) .page-pause { min-width: 30px; }
 #dots.pagebar .page-all svg, #dots.pagebar .page-pause svg { width: 13px; height: 13px; }
