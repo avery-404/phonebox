@@ -1200,6 +1200,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "LRCLIB पर बोल खोजें (गाने का नाम, कलाकार, एल्बम और अवधि भेजता है)",
       "Show lyrics without timing when there are no timed ones": "सिंक किए बोल न हों तो बिना समय वाले बोल दिखाएँ",
       "Timing offset in ms (positive shows lines earlier)": "समय समायोजन ms में (धनात्मक मान पंक्तियाँ पहले दिखाता है)",
+      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "प्लेयर के अनुसार समय समायोजन (प्रति पंक्ति एक, 'प्लेयर=ms', उस प्लेयर के लिए ऊपर के समायोजन की जगह लेता है)",
       "Discord": "Discord",
       "Discord controls": "Discord नियंत्रण",
       "Display brightness": "प्रदर्शक चमकीलापन",

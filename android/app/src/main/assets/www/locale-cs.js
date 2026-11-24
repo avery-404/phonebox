@@ -1200,6 +1200,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "Hledat texty na LRCLIB (posílá název, interpreta, album a délku skladby)",
       "Show lyrics without timing when there are no timed ones": "Zobrazit text bez časování, když synchronizovaný chybí",
       "Timing offset in ms (positive shows lines earlier)": "Časový posun v ms (kladný zobrazí řádky dříve)",
+      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "Časový posun podle přehrávače (jeden na řádek, „Přehrávač=ms“, nahradí posun výše pro tento přehrávač)",
       "Discord": "Discord",
       "Discord controls": "Discord ovládací prvky",
       "Display brightness": "Jas displeje",

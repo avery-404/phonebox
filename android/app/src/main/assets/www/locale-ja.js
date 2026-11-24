@@ -1200,6 +1200,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "LRCLIB で歌詞を検索（曲名、アーティスト、アルバム、長さを送信）",
       "Show lyrics without timing when there are no timed ones": "同期歌詞がない場合はタイミングなしの歌詞を表示",
       "Timing offset in ms (positive shows lines earlier)": "タイミング調整（ミリ秒、正の値で行を早く表示）",
+      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "プレーヤーごとのタイミング調整（1行に1つ、「プレーヤー名=ミリ秒」、そのプレーヤーでは上の調整の代わりに使用）",
       "Discord": "Discord",
       "Discord controls": "Discord コントロール",
       "Display brightness": "ディスプレイの明るさ",

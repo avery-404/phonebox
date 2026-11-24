@@ -1200,6 +1200,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "Шукати тексти в LRCLIB (надсилає назву, виконавця, альбом і тривалість треку)",
       "Show lyrics without timing when there are no timed ones": "Показувати несинхронізований текст, якщо синхронізованого немає",
       "Timing offset in ms (positive shows lines earlier)": "Зсув у мс (додатний показує рядки раніше)",
+      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "Зсув для кожного програвача (по одному в рядку, «Програвач=мс», замінює зсув вище для цього програвача)",
       "Discord": "Discord",
       "Discord controls": "Керування Discord",
       "Display brightness": "Яркість дисплея",

@@ -1200,6 +1200,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "ค้นหาเนื้อเพลงใน LRCLIB (ส่งชื่อเพลง ศิลปิน อัลบั้ม และความยาว)",
       "Show lyrics without timing when there are no timed ones": "แสดงเนื้อเพลงแบบไม่มีเวลาเมื่อไม่มีแบบซิงก์",
       "Timing offset in ms (positive shows lines earlier)": "เลื่อนเวลาเป็นมิลลิวินาที (ค่าบวกแสดงบรรทัดเร็วขึ้น)",
+      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "เลื่อนเวลาตามเครื่องเล่น (หนึ่งรายการต่อบรรทัด, 'เครื่องเล่น=ms' ใช้แทนค่าเลื่อนด้านบนสำหรับเครื่องเล่นนั้น)",
       "Discord": "Discord",
       "Discord controls": "ควบคุม Discord",
       "Display brightness": "ความสว่างของจอภาพ",
