@@ -151,9 +151,10 @@ public sealed class MediaMonitor(ILogger<MediaMonitor> log) : BackgroundService
         return ok;
     }
 
-    private static string FriendlyApp(string id)
+    internal static string FriendlyApp(string id)
     {
         var l = id.ToLowerInvariant();
+        if (l.Contains("applemusic")) return "Apple Music"; // AppleInc.AppleMusicWin_…!App, otherwise reported as "AppleInc"
         if (l.Contains("spotify")) return "Spotify";
         if (l.Contains("chrome")) return "Chrome";
         if (l.Contains("firefox") || l.Contains("308046b0af4a39cb")) return "Firefox";

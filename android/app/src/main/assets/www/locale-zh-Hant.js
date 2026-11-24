@@ -1200,7 +1200,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "在 LRCLIB 尋找歌詞（傳送曲名、演出者、專輯和長度）",
       "Show lyrics without timing when there are no timed ones": "沒有同步歌詞時顯示未同步的歌詞",
       "Timing offset in ms (positive shows lines earlier)": "時間偏移（毫秒，正值讓歌詞提前顯示）",
-      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "依播放器設定時間偏移（每行一個，「播放器=毫秒」，該播放器改用此值而不用上面的偏移）",
+      "Timing offset per player (one per line, 'Name=ms' with the name Now playing shows, e.g. 'Spotify=-200'; replaces the offset above for that player)": "依播放器設定時間偏移（每行一個，「名稱=毫秒」，名稱為「現在播放」顯示的名稱，例如「Spotify=-200」；該播放器改用此值而不用上面的偏移）",
       "Discord": "Discord",
       "Discord controls": "Discord 控制",
       "Display brightness": "顯示亮度",

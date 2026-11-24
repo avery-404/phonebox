@@ -1200,7 +1200,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "LRCLIB에서 가사 찾기(곡 제목, 아티스트, 앨범, 길이를 보냄)",
       "Show lyrics without timing when there are no timed ones": "싱크 가사가 없으면 시간 정보 없는 가사 표시",
       "Timing offset in ms (positive shows lines earlier)": "시간 보정(ms, 양수면 줄을 더 일찍 표시)",
-      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "플레이어별 시간 보정(한 줄에 하나, '플레이어=ms', 해당 플레이어에서는 위 보정 대신 사용)",
+      "Timing offset per player (one per line, 'Name=ms' with the name Now playing shows, e.g. 'Spotify=-200'; replaces the offset above for that player)": "플레이어별 시간 보정(한 줄에 하나, '이름=ms', 이름은 '재생 중'에 표시되는 이름, 예: 'Spotify=-200'. 해당 플레이어에서는 위 보정 대신 사용)",
       "Discord": "Discord",
       "Discord controls": "Discord 제어기",
       "Display brightness": "디스플레이 밝기",

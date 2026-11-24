@@ -607,7 +607,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "Sözleri LRCLIB’de ara (parçanın başlığını, sanatçısını, albümünü ve süresini gönderir)",
       "Show lyrics without timing when there are no timed ones": "Senkronize söz yoksa zamanlanmamış sözleri göster",
       "Timing offset in ms (positive shows lines earlier)": "Zaman kayması (ms, pozitif değer satırları erken gösterir)",
-      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "Oynatıcıya göre zaman kayması (satır başına bir tane, 'Oynatıcı=ms', o oynatıcı için yukarıdaki kaymanın yerine geçer)",
+      "Timing offset per player (one per line, 'Name=ms' with the name Now playing shows, e.g. 'Spotify=-200'; replaces the offset above for that player)": "Oynatıcıya göre zaman kayması (satır başına bir tane, 'Ad=ms'; ad, \"Şu anda çalınıyor\" öğesinde görünen addır, örn. 'Spotify=-200'; o oynatıcı için yukarıdaki kaymanın yerine geçer)",
       "Discord": "Discord",
       "Discord controls": "Discord kontrolleri",
       "Display brightness": "Ekran parlaklığı",

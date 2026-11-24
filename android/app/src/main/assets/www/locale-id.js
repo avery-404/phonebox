@@ -1200,7 +1200,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "Cari lirik di LRCLIB (mengirim judul, artis, album, dan durasi lagu)",
       "Show lyrics without timing when there are no timed ones": "Tampilkan lirik tanpa penanda waktu jika tidak ada yang tersinkron",
       "Timing offset in ms (positive shows lines earlier)": "Geser waktu dalam ms (positif menampilkan baris lebih awal)",
-      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "Geser waktu per pemutar (satu per baris, 'Pemutar=ms', menggantikan geseran di atas untuk pemutar itu)",
+      "Timing offset per player (one per line, 'Name=ms' with the name Now playing shows, e.g. 'Spotify=-200'; replaces the offset above for that player)": "Geser waktu per pemutar (satu per baris, 'Nama=ms' dengan nama yang ditampilkan \"Sekarang bermain\", mis. 'Spotify=-200'; menggantikan geseran di atas untuk pemutar itu)",
       "Discord": "Discord",
       "Discord controls": "Discord kontrol",
       "Display brightness": "Kecerahan layar",

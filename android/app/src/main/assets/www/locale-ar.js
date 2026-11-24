@@ -1234,7 +1234,7 @@ window.PhoneBoxLocaleData = Object.assign(window.PhoneBoxLocaleData || {}, {
       "Look up lyrics on LRCLIB (sends the track's title, artist, album and length)": "البحث عن الكلمات في LRCLIB (يرسل العنوان والفنان والألبوم والمدة)",
       "Show lyrics without timing when there are no timed ones": "إظهار الكلمات غير المتزامنة عند عدم وجود كلمات متزامنة",
       "Timing offset in ms (positive shows lines earlier)": "إزاحة التوقيت بالملّي ثانية (القيمة الموجبة تُظهر الأسطر أبكر)",
-      "Timing offset per player (one per line, 'Player=ms', replaces the offset above for that player)": "إزاحة التوقيت لكل مشغّل (واحد في كل سطر، 'المشغّل=ms'، تحلّ محلّ الإزاحة أعلاه لهذا المشغّل)",
+      "Timing offset per player (one per line, 'Name=ms' with the name Now playing shows, e.g. 'Spotify=-200'; replaces the offset above for that player)": "إزاحة التوقيت لكل مشغّل (واحد في كل سطر، 'الاسم=ms' بالاسم الذي يعرضه «الآن يلعب»، مثل 'Spotify=-200'؛ تحلّ محلّ الإزاحة أعلاه لهذا المشغّل)",
       "Discord": "Discord",
       "Discord controls": "Discord الضوابط",
       "Display brightness": "سطوع الشاشة",
