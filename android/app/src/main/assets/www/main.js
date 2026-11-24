@@ -1678,6 +1678,7 @@ export function buildDots() {
   dots.replaceChildren(...pages.map(dot), pageAllBtn, pagePauseBtn);
   dots.hidden = false;
   syncPagePauseUi();
+  fitPageBar();
 }
 
 export function updateDots() {
@@ -2059,6 +2060,16 @@ export function applyPageBar() {
   $('dots').classList.toggle('pb-vertical', shown && side !== 'bottom');
   // a docked bar changes the size of the pages: keep the current one in place
   if (reflow) requestAnimationFrame(() => goPage(curPage, true));
+  fitPageBar();
+}
+/** Adds .pb-tight when a bottom/top page bar does not fit the screen, so only the current page keeps its name (#553). */
+export function fitPageBar() {
+  const d = $('dots');
+  d.classList.remove('pb-tight'); // measure with every name showing
+  if (!d.classList.contains('pagebar') || d.classList.contains('pb-vertical')) return;
+  // the buttons shrink before the bar overflows, so a name cut short ("首", "播…") is the sign that it does not fit
+  const cut = [...d.querySelectorAll('.dot-nm')].some((n) => n.scrollWidth > n.clientWidth);
+  if (cut || d.scrollWidth > d.clientWidth) d.classList.add('pb-tight');
 }
 /** Whether the dots show as a page bar down the left or right edge (slides then go up and down). */
 const barVertical = () => $('dots').classList.contains('pagebar') && $('dots').classList.contains('pb-vertical');
@@ -2264,7 +2275,7 @@ window.onAndroidBack = () => {
   else if (curPage !== homeIndex()) goPage(homeIndex(), true);
   else openOverview();
 };
-window.addEventListener('resize', () => { buildLayout(); goPage(curPage, true); });
+window.addEventListener('resize', () => { buildLayout(); goPage(curPage, true); fitPageBar(); });
 
 ['pointerdown', 'touchstart'].forEach((ev) => document.addEventListener(ev, (e) => {
   if (dimmed) wakeFromDim();
