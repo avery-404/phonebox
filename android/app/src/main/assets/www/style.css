@@ -571,6 +571,12 @@ body.offline .offline-msg { display: flex; }
 .q-pace.fast { color: #fbbf24; }
 .q-pace.over { color: #f87171; }
 .q-pace.calm { color: #86efac; }
+/* A card with two or three rings (Antigravity has three): the columns can be narrower than their labels, and a column with more
+   lines (reset time, pace, "% left") used to push its ring up or down against the others. Top-align the rings, centre the group in
+   the card, and let the labels wrap inside their column. The four-or-more grid (.q-rings-grid) keeps its own ellipsis rules. */
+.q-rings:not(.q-rings-grid) { flex: 0 1 auto; margin-block: auto; align-items: flex-start; }
+.q-rings:not(.q-rings-grid) .q-ring { flex: 1 1 0; }
+.q-rings:not(.q-rings-grid) :is(.q-label, .q-left, .q-reset, .q-pace) { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
 .q-foot { font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; }
 .q-details { display: grid; gap: 2px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 10.5px; min-width: 0; }
 .q-detail { display: flex; justify-content: space-between; gap: 6px; min-width: 0; color: var(--muted); }
